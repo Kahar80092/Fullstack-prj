@@ -5,6 +5,7 @@ import {
   User, Calendar, MapPin, ArrowRight, RefreshCw, ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { findMatchingFace } from '../utils/faceCompare';
 import './Verify.css';
 
 const Verify = () => {
@@ -23,7 +24,8 @@ const Verify = () => {
   const streamRef = useRef(null);
   const pendingStreamRef = useRef(null);
   const navigate = useNavigate();
-  const { verifyAadhaar, hasAadhaarVoted, setCurrentVoter, saveFaceCapture, faceCaptures } = useAuth();
+  const { verifyAadhaar, hasAadhaarVoted, setCurrentVoter, saveFaceCapture, faceCaptures, blockAadhaar, isAadhaarBlocked, getBlockRemaining } = useAuth();
+  const [blockCountdown, setBlockCountdown] = useState(0);
 
   // Format Aadhaar number with spaces
   const formatAadhaar = (value) => {
@@ -68,6 +70,15 @@ const Verify = () => {
   // ─── Camera: open ───
   const startCamera = async () => {
     setError('');
+
+    // Check if Aadhaar is blocked before allowing camera
+    if (aadhaarData && isAadhaarBlocked(aadhaarData.aadhaar)) {
+      const remaining = getBlockRemaining(aadhaarData.aadhaar);
+      setError(`⛔ This Aadhaar is temporarily blocked. Try again in ${remaining}s`);
+      setBlockCountdown(remaining);
+      return;
+    }
+
     setCapturedPhoto(null);
     setStatusMsg('Requesting camera access...');
     try {
@@ -126,13 +137,40 @@ const Verify = () => {
     startCamera();
   };
 
+  // ─── Countdown timer for blocked Aadhaar ───
+  useEffect(() => {
+    if (blockCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setBlockCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setError('');
+          return 0;
+        }
+        setError(`⛔ This Aadhaar is temporarily blocked. Try again in ${prev - 1}s`);
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [blockCountdown]);
+
   // ─── Confirm & save the photo, proceed to step 3 ───
   const confirmPhoto = async () => {
     if (!capturedPhoto || !aadhaarData) return;
     setSaving(true);
-    setStatusMsg('Saving face capture and verifying...');
+    setError('');
+    setStatusMsg('Analyzing face and checking for duplicates...');
 
-    // Check if this Aadhaar already has a capture (duplicate prevention)
+    // 1. Check if this Aadhaar is currently blocked
+    if (isAadhaarBlocked(aadhaarData.aadhaar)) {
+      const remaining = getBlockRemaining(aadhaarData.aadhaar);
+      setError(`⛔ This Aadhaar is temporarily blocked. Try again in ${remaining}s`);
+      setBlockCountdown(remaining);
+      setSaving(false);
+      return;
+    }
+
+    // 2. Check if this Aadhaar already has a capture (same Aadhaar duplicate)
     const existingCapture = faceCaptures.find(c => c.aadhaar === aadhaarData.aadhaar);
     if (existingCapture) {
       setError('A face capture already exists for this Aadhaar. Duplicate voting prevented.');
@@ -140,10 +178,27 @@ const Verify = () => {
       return;
     }
 
-    // Simulate brief processing time
-    await new Promise(r => setTimeout(r, 1200));
+    // 3. Compare face against ALL previously stored captures
+    setStatusMsg('Comparing face against existing records...');
+    const match = await findMatchingFace(capturedPhoto, faceCaptures, 0.85);
+    if (match) {
+      // Face matches a previous voter — block this Aadhaar for 15 seconds
+      blockAadhaar(aadhaarData.aadhaar, 15000);
+      setBlockCountdown(15);
+      setError(
+        `⛔ Face match detected! Your face matches a previously verified voter (Aadhaar ****${match.aadhaar?.slice(-4)}). ` +
+        `This Aadhaar is now blocked for 15 seconds. Duplicate voting prevented.`
+      );
+      setCapturedPhoto(null);
+      setSaving(false);
+      setStatusMsg('');
+      return;
+    }
 
-    // Save capture to "folder" (context state)
+    // 4. No match found — safe to save
+    setStatusMsg('No duplicate found. Saving face capture...');
+    await new Promise(r => setTimeout(r, 800));
+
     saveFaceCapture({
       aadhaar: aadhaarData.aadhaar,
       name: aadhaarData.name,
@@ -156,7 +211,7 @@ const Verify = () => {
       facePhoto: capturedPhoto
     });
 
-    setStatusMsg('Face verified and saved successfully!');
+    setStatusMsg('✅ Face verified and saved successfully!');
     setSaving(false);
     setTimeout(() => setStep(3), 1000);
   };
@@ -311,7 +366,7 @@ const Verify = () => {
 
                 {/* Error */}
                 {error && (
-                  <div className="verify-error">
+                  <div className={`verify-error ${blockCountdown > 0 ? 'blocked' : ''}`}>
                     <AlertCircle size={16} />
                     <span>{error}</span>
                   </div>
@@ -320,8 +375,8 @@ const Verify = () => {
                 {/* Action buttons */}
                 <div className="capture-actions">
                   {!cameraActive && !capturedPhoto && (
-                    <button className="btn-capture" onClick={startCamera}>
-                      <Camera size={18} /> Start Camera
+                    <button className="btn-capture" onClick={startCamera} disabled={blockCountdown > 0}>
+                      <Camera size={18} /> {blockCountdown > 0 ? `Blocked (${blockCountdown}s)` : 'Start Camera'}
                     </button>
                   )}
 

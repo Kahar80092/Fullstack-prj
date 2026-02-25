@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [votedAadhaar, setVotedAadhaar] = useState(votedAadhaarHashes);
   const [faceEmbeddings, setFaceEmbeddings] = useState([]);
   const [faceCaptures, setFaceCaptures] = useState([]);
+  const [blockedAadhaars, setBlockedAadhaars] = useState({});
   const [electionPhase, setElectionPhase] = useState('voting');
   const [currentVoter, setCurrentVoter] = useState(null);
   const [candidates] = useState(mockCandidates);
@@ -186,6 +187,36 @@ export const AuthProvider = ({ children }) => {
     }]);
   };
 
+  // Block an Aadhaar number for a given duration (ms)
+  const blockAadhaar = (aadhaar, durationMs = 15000) => {
+    const unblockAt = Date.now() + durationMs;
+    setBlockedAadhaars(prev => ({ ...prev, [aadhaar]: unblockAt }));
+  };
+
+  // Check if an Aadhaar is currently blocked
+  const isAadhaarBlocked = (aadhaar) => {
+    const unblockAt = blockedAadhaars[aadhaar];
+    if (!unblockAt) return false;
+    if (Date.now() >= unblockAt) {
+      // Expired — clean up
+      setBlockedAadhaars(prev => {
+        const copy = { ...prev };
+        delete copy[aadhaar];
+        return copy;
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Get remaining block time in seconds
+  const getBlockRemaining = (aadhaar) => {
+    const unblockAt = blockedAadhaars[aadhaar];
+    if (!unblockAt) return 0;
+    const remaining = Math.max(0, Math.ceil((unblockAt - Date.now()) / 1000));
+    return remaining;
+  };
+
   // Check for duplicate face using Euclidean distance on 128-d descriptors
   const checkDuplicateFace = (newDescriptor) => {
     if (!newDescriptor || faceEmbeddings.length === 0) return false;
@@ -285,6 +316,9 @@ export const AuthProvider = ({ children }) => {
     checkDuplicateFace,
     faceCaptures,
     saveFaceCapture,
+    blockAadhaar,
+    isAadhaarBlocked,
+    getBlockRemaining,
     castVote,
     electionPhase,
     changeElectionPhase,
