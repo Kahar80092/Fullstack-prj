@@ -1787,3 +1787,93 @@ input:checked + .slider:before {
     flex-direction: column;
   }
 }
+
+/* =====================
+   Face Captures Tab
+   ===================== */
+.empty-captures {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: var(--gray-400);
+  gap: 1rem;
+  text-align: center;
+}
+
+.captures-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.capture-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--gray-200);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.capture-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.capture-photo {
+  width: 100%;
+  aspect-ratio: 4/3;
+  overflow: hidden;
+  background: var(--gray-900);
+}
+
+.capture-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.capture-info {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.capture-name {
+  font-weight: 700;
+  color: var(--gray-900);
+  font-size: 1rem;
+}
+
+.capture-aadhaar {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  font-family: monospace;
+}
+
+.capture-constituency {
+  font-size: 0.8rem;
+  color: var(--ashoka-blue);
+  font-weight: 600;
+}
+
+.capture-time {
+  font-size: 0.72rem;
+  color: var(--gray-400);
+}
+
+.capture-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  background: rgba(19, 136, 8, 0.08);
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-top: 1px solid var(--gray-100);
+}

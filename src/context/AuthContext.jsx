@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
   const [votedAadhaar, setVotedAadhaar] = useState(votedAadhaarHashes);
   const [faceEmbeddings, setFaceEmbeddings] = useState([]);
+  const [faceCaptures, setFaceCaptures] = useState([]);
   const [electionPhase, setElectionPhase] = useState('voting');
   const [currentVoter, setCurrentVoter] = useState(null);
   const [candidates] = useState(mockCandidates);
@@ -176,6 +177,15 @@ export const AuthProvider = ({ children }) => {
     }]);
   };
 
+  // Save face capture photo (the "folder")
+  const saveFaceCapture = (capture) => {
+    setFaceCaptures(prev => [...prev, {
+      id: `FC${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      ...capture
+    }]);
+  };
+
   // Check for duplicate face using Euclidean distance on 128-d descriptors
   const checkDuplicateFace = (newDescriptor) => {
     if (!newDescriptor || faceEmbeddings.length === 0) return false;
@@ -273,6 +283,8 @@ export const AuthProvider = ({ children }) => {
     faceEmbeddings,
     addFaceEmbedding,
     checkDuplicateFace,
+    faceCaptures,
+    saveFaceCapture,
     castVote,
     electionPhase,
     changeElectionPhase,

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   LayoutDashboard, Users, Vote, AlertTriangle, Settings,
   Activity, Shield, Clock, CheckCircle, XCircle, Eye,
-  FileText, TrendingUp, MapPin, RefreshCw
+  FileText, TrendingUp, MapPin, RefreshCw, Camera
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Dashboard.css';
@@ -11,7 +11,8 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { 
     stats, electionPhase, changeElectionPhase, 
-    reports, auditLogs, votes = [], candidates = []
+    reports, auditLogs, votes = [], candidates = [],
+    faceCaptures = []
   } = useAuth();
 
   // Calculate vote counts per party
@@ -26,6 +27,7 @@ const AdminDashboard = () => {
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'monitoring', label: 'Live Monitoring', icon: Activity },
     { id: 'reports', label: 'Reports', icon: FileText },
+    { id: 'captures', label: 'Face Captures', icon: Camera },
     { id: 'audit', label: 'Audit Logs', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -327,6 +329,45 @@ const AdminDashboard = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'captures' && (
+            <div className="dashboard-content">
+              <div className="table-card">
+                <div className="table-header">
+                  <h3>
+                    <Camera size={18} />
+                    Face Capture Records ({faceCaptures.length})
+                  </h3>
+                </div>
+                {faceCaptures.length === 0 ? (
+                  <div className="empty-captures">
+                    <Camera size={48} />
+                    <p>No face captures yet. Photos will appear here after voters complete verification.</p>
+                  </div>
+                ) : (
+                  <div className="captures-grid">
+                    {faceCaptures.map(capture => (
+                      <div key={capture.id} className="capture-card">
+                        <div className="capture-photo">
+                          <img src={capture.photo} alt={`Voter ${capture.name}`} />
+                        </div>
+                        <div className="capture-info">
+                          <span className="capture-name">{capture.name}</span>
+                          <span className="capture-aadhaar">Aadhaar: ****{capture.aadhaar?.slice(-4)}</span>
+                          <span className="capture-constituency">{capture.constituency}</span>
+                          <span className="capture-time">{new Date(capture.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div className="capture-badge">
+                          <CheckCircle size={16} />
+                          Verified
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

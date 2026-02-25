@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as faceapi from 'face-api.js';
 import { 
   CreditCard, Camera, CheckCircle, AlertCircle, Shield, 
-  User, Calendar, MapPin, ArrowRight, RefreshCw, Loader 
+  User, Calendar, MapPin, ArrowRight, RefreshCw, ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Verify.css';
@@ -13,50 +12,23 @@ const Verify = () => {
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [aadhaarData, setAadhaarData] = useState(null);
-  const [faceVerifying, setFaceVerifying] = useState(false);
-  const [faceResult, setFaceResult] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [error, setError] = useState('');
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [modelsLoading, setModelsLoading] = useState(false);
-  const [faceDetected, setFaceDetected] = useState(false);
-  const [faceDetectionStatus, setFaceDetectionStatus] = useState('');
-  const [detectionCount, setDetectionCount] = useState(0);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [saving, setSaving] = useState(false);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const detectionIntervalRef = useRef(null);
   const streamRef = useRef(null);
   const navigate = useNavigate();
-  const { verifyAadhaar, checkDuplicateFace, hasAadhaarVoted, setCurrentVoter, addFaceEmbedding } = useAuth();
-
-  // Load face-api.js models
-  const loadModels = useCallback(async () => {
-    if (modelsLoaded || modelsLoading) return;
-    setModelsLoading(true);
-    setFaceDetectionStatus('Loading AI face detection models...');
-    try {
-      const MODEL_URL = '/models';
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      ]);
-      setModelsLoaded(true);
-      setFaceDetectionStatus('AI models loaded. Starting camera...');
-    } catch (err) {
-      console.error('Failed to load face detection models:', err);
-      setFaceDetectionStatus('Failed to load AI models. Using fallback mode.');
-    }
-    setModelsLoading(false);
-  }, [modelsLoaded, modelsLoading]);
+  const { verifyAadhaar, hasAadhaarVoted, setCurrentVoter, saveFaceCapture, faceCaptures } = useAuth();
 
   // Format Aadhaar number with spaces
   const formatAadhaar = (value) => {
     const cleaned = value.replace(/\s/g, '').replace(/\D/g, '');
     const limited = cleaned.slice(0, 12);
-    const formatted = limited.replace(/(\d{4})(?=\d)/g, '$1 ');
-    return formatted;
+    return limited.replace(/(\d{4})(?=\d)/g, '$1 ');
   };
 
   const handleAadhaarChange = (e) => {
@@ -67,14 +39,12 @@ const Verify = () => {
 
   const handleAadhaarVerify = async () => {
     const cleanAadhaar = aadhaarNumber.replace(/\s/g, '');
-    
     if (cleanAadhaar.length !== 12) {
       setError('Please enter a valid 12-digit Aadhaar number');
       return;
     }
 
     setVerificationStatus('verifying');
-    
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     if (hasAadhaarVoted(cleanAadhaar)) {
@@ -84,7 +54,6 @@ const Verify = () => {
     }
 
     const result = verifyAadhaar(cleanAadhaar);
-    
     if (result) {
       setAadhaarData(result);
       setVerificationStatus('verified');
@@ -95,215 +64,101 @@ const Verify = () => {
     }
   };
 
-  // Start webcam and face detection loop
+  // ─── Camera: open ───
   const startCamera = async () => {
     setError('');
-    setFaceDetected(false);
-    setDetectionCount(0);
-    setFaceDetectionStatus('Requesting camera access...');
-    
-    // Load models first
-    await loadModels();
-
+    setCapturedPhoto(null);
+    setStatusMsg('Requesting camera access...');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setCameraActive(true);
-        setFaceDetectionStatus('Camera active. Position your face in the frame.');
-        
-        // Start face detection loop
-        if (modelsLoaded) {
-          startFaceDetectionLoop();
-        }
+        setStatusMsg('Camera active — position your face and click Capture Photo.');
       }
     } catch (err) {
       console.error('Camera error:', err);
-      setError('Camera access denied or not available. Please allow camera permission and try again.');
-      setFaceDetectionStatus('Camera unavailable');
+      setError('Camera access denied. Please allow camera permission and try again.');
+      setStatusMsg('');
     }
   };
 
-  // Continuous face detection loop — draws bounding box + landmarks
-  const startFaceDetectionLoop = () => {
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-    }
-
-    detectionIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
-      
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      // Match canvas to video display size
-      const displaySize = { width: video.videoWidth, height: video.videoHeight };
-      faceapi.matchDimensions(canvas, displaySize);
-
-      try {
-        const detection = await faceapi
-          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-          .withFaceLandmarks();
-
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (detection) {
-          const resizedDetection = faceapi.resizeResults(detection, displaySize);
-          
-          // Draw bounding box
-          const { x, y, width, height } = resizedDetection.detection.box;
-          ctx.strokeStyle = '#00ff88';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(x, y, width, height);
-
-          // Draw corner accents
-          const cornerLen = 20;
-          ctx.strokeStyle = '#FF9933';
-          ctx.lineWidth = 4;
-          // Top-left
-          ctx.beginPath(); ctx.moveTo(x, y + cornerLen); ctx.lineTo(x, y); ctx.lineTo(x + cornerLen, y); ctx.stroke();
-          // Top-right
-          ctx.beginPath(); ctx.moveTo(x + width - cornerLen, y); ctx.lineTo(x + width, y); ctx.lineTo(x + width, y + cornerLen); ctx.stroke();
-          // Bottom-left
-          ctx.beginPath(); ctx.moveTo(x, y + height - cornerLen); ctx.lineTo(x, y + height); ctx.lineTo(x + cornerLen, y + height); ctx.stroke();
-          // Bottom-right
-          ctx.beginPath(); ctx.moveTo(x + width - cornerLen, y + height); ctx.lineTo(x + width, y + height); ctx.lineTo(x + width, y + height - cornerLen); ctx.stroke();
-
-          // Draw landmarks (68 points)
-          const landmarks = resizedDetection.landmarks.positions;
-          ctx.fillStyle = 'rgba(0, 255, 136, 0.6)';
-          landmarks.forEach(pt => {
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 2, 0, 2 * Math.PI);
-            ctx.fill();
-          });
-
-          // Show confidence score
-          const score = (resizedDetection.detection.score * 100).toFixed(1);
-          ctx.fillStyle = '#FF9933';
-          ctx.font = 'bold 14px sans-serif';
-          ctx.fillText(`Face: ${score}%`, x, y - 8);
-
-          setFaceDetected(true);
-          setDetectionCount(prev => prev + 1);
-          setFaceDetectionStatus(`Face detected (${score}% confidence). Click "Capture & Verify" when ready.`);
-        } else {
-          setFaceDetected(false);
-          setFaceDetectionStatus('No face detected. Please look directly at the camera.');
-        }
-      } catch (err) {
-        // Silence occasional detection errors during stream
-      }
-    }, 200); // Run detection every 200ms
-  };
-
+  // ─── Camera: stop ───
   const stopCamera = useCallback(() => {
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCameraActive(false);
   }, []);
 
-  // Capture face and extract 128-dimensional descriptor
-  const captureFace = async () => {
-    if (!cameraActive) {
-      await startCamera();
+  // ─── Snap a photo from the live video ───
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setCapturedPhoto(dataUrl);
+    stopCamera();
+    setStatusMsg('Photo captured! Review and confirm below.');
+  };
+
+  // ─── Retake ───
+  const retakePhoto = () => {
+    setCapturedPhoto(null);
+    setStatusMsg('');
+    startCamera();
+  };
+
+  // ─── Confirm & save the photo, proceed to step 3 ───
+  const confirmPhoto = async () => {
+    if (!capturedPhoto || !aadhaarData) return;
+    setSaving(true);
+    setStatusMsg('Saving face capture and verifying...');
+
+    // Check if this Aadhaar already has a capture (duplicate prevention)
+    const existingCapture = faceCaptures.find(c => c.aadhaar === aadhaarData.aadhaar);
+    if (existingCapture) {
+      setError('A face capture already exists for this Aadhaar. Duplicate voting prevented.');
+      setSaving(false);
       return;
     }
 
-    if (!faceDetected) {
-      setError('No face detected. Please position your face clearly in the frame.');
-      return;
-    }
+    // Simulate brief processing time
+    await new Promise(r => setTimeout(r, 1200));
 
-    setFaceVerifying(true);
-    setError('');
-    setFaceDetectionStatus('Extracting face biometrics...');
+    // Save capture to "folder" (context state)
+    saveFaceCapture({
+      aadhaar: aadhaarData.aadhaar,
+      name: aadhaarData.name,
+      constituency: aadhaarData.constituency,
+      photo: capturedPhoto
+    });
 
-    // Stop the live detection loop so we get a clean capture
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
+    setCurrentVoter({
+      ...aadhaarData,
+      facePhoto: capturedPhoto
+    });
 
-    try {
-      const video = videoRef.current;
-      
-      // Get full detection with descriptor (128-d vector)
-      const detection = await faceapi
-        .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-      if (!detection) {
-        setError('Face lost during capture. Please try again.');
-        setFaceVerifying(false);
-        startFaceDetectionLoop();
-        return;
-      }
-
-      const descriptor = Array.from(detection.descriptor); // 128-dim Float32 → regular array
-      const confidence = detection.detection.score;
-      
-      setFaceDetectionStatus(`Face captured! Confidence: ${(confidence * 100).toFixed(1)}%. Checking for duplicates...`);
-
-      // Check for duplicate face using actual descriptor comparison
-      const isDuplicate = checkDuplicateFace(descriptor);
-
-      if (isDuplicate) {
-        setFaceResult('duplicate');
-        setError('Face matches a previously registered voter. Duplicate voting prevented.');
-        stopCamera();
-      } else {
-        // Store the face descriptor for future duplicate checks
-        addFaceEmbedding({
-          aadhaar: aadhaarData.aadhaar,
-          descriptor: descriptor,
-          confidence: confidence
-        });
-
-        setFaceResult('success');
-        setFaceDetectionStatus('Face verified successfully! Identity confirmed.');
-        setCurrentVoter({
-          ...aadhaarData,
-          faceDescriptor: descriptor,
-          faceConfidence: confidence
-        });
-        stopCamera();
-        setTimeout(() => setStep(3), 1500);
-      }
-    } catch (err) {
-      console.error('Face capture error:', err);
-      setError('Face capture failed. Please try again.');
-      startFaceDetectionLoop();
-    }
-
-    setFaceVerifying(false);
+    setStatusMsg('Face verified and saved successfully!');
+    setSaving(false);
+    setTimeout(() => setStep(3), 1000);
   };
 
   useEffect(() => {
-    return () => {
-      stopCamera();
-    };
+    return () => stopCamera();
   }, [stopCamera]);
 
-  const proceedToVoting = () => {
-    navigate('/vote');
-  };
+  const proceedToVoting = () => navigate('/vote');
 
   return (
     <div className="verify-page">
@@ -321,7 +176,7 @@ const Verify = () => {
             <div className="step-number">
               {step > 2 ? <CheckCircle size={20} /> : '2'}
             </div>
-            <span>Face Detection</span>
+            <span>Face Capture</span>
           </div>
           <div className="progress-line"></div>
           <div className={`progress-step ${step >= 3 ? 'active' : ''}`}>
@@ -366,26 +221,17 @@ const Verify = () => {
                   </div>
                 )}
 
-                <button 
+                <button
                   className="btn-verify"
                   onClick={handleAadhaarVerify}
                   disabled={verificationStatus === 'verifying' || aadhaarNumber.replace(/\s/g, '').length !== 12}
                 >
                   {verificationStatus === 'verifying' ? (
-                    <>
-                      <RefreshCw size={18} className="spin" />
-                      Verifying...
-                    </>
+                    <><RefreshCw size={18} className="spin" /> Verifying...</>
                   ) : verificationStatus === 'verified' ? (
-                    <>
-                      <CheckCircle size={18} />
-                      Verified
-                    </>
+                    <><CheckCircle size={18} /> Verified</>
                   ) : (
-                    <>
-                      <Shield size={18} />
-                      Verify Aadhaar
-                    </>
+                    <><Shield size={18} /> Verify Aadhaar</>
                   )}
                 </button>
               </div>
@@ -400,72 +246,59 @@ const Verify = () => {
           </div>
         )}
 
-        {/* Step 2: Face Detection */}
+        {/* Step 2: Face Capture */}
         {step === 2 && (
           <div className="verify-card">
             <div className="card-header">
               <Camera size={32} />
               <div>
-                <h2>Face Detection</h2>
-                <p>Capture your face for duplicate voting prevention</p>
+                <h2>Face Capture</h2>
+                <p>Take a photo for voter identity records &amp; duplicate prevention</p>
               </div>
             </div>
 
             <div className="card-content">
-              {/* Verified Aadhaar Info */}
+              {/* Aadhaar Info */}
               {aadhaarData && (
                 <div className="aadhaar-info-card">
-                  <div className="info-row">
-                    <User size={16} />
-                    <span>{aadhaarData.name}</span>
-                  </div>
-                  <div className="info-row">
-                    <Calendar size={16} />
-                    <span>DOB: {aadhaarData.dob}</span>
-                  </div>
-                  <div className="info-row">
-                    <MapPin size={16} />
-                    <span>{aadhaarData.constituency}, {aadhaarData.state}</span>
-                  </div>
+                  <div className="info-row"><User size={16} /><span>{aadhaarData.name}</span></div>
+                  <div className="info-row"><Calendar size={16} /><span>DOB: {aadhaarData.dob}</span></div>
+                  <div className="info-row"><MapPin size={16} /><span>{aadhaarData.constituency}, {aadhaarData.state}</span></div>
                 </div>
               )}
 
               <div className="camera-section">
                 <div className="camera-box">
-                  {cameraActive ? (
-                    <>
-                      <video ref={videoRef} autoPlay playsInline muted />
-                      <canvas ref={canvasRef} className="face-canvas-overlay" />
-                    </>
-                  ) : (
+                  {/* Live video feed */}
+                  {cameraActive && !capturedPhoto && (
+                    <video ref={videoRef} autoPlay playsInline muted />
+                  )}
+
+                  {/* Captured photo preview */}
+                  {capturedPhoto && (
+                    <img src={capturedPhoto} alt="Captured face" className="captured-preview" />
+                  )}
+
+                  {/* Placeholder when nothing active */}
+                  {!cameraActive && !capturedPhoto && (
                     <div className="camera-placeholder">
                       <Camera size={48} />
                       <p>Click "Start Camera" to begin</p>
                     </div>
                   )}
-                  
-                  {faceVerifying && (
-                    <div className="face-scanning-overlay">
-                      <div className="scanning-animation"></div>
-                      <p>Scanning face...</p>
-                    </div>
-                  )}
-
-                  {faceResult === 'success' && (
-                    <div className="face-result success">
-                      <CheckCircle size={48} />
-                      <p>Face verified successfully!</p>
-                    </div>
-                  )}
-
-                  {faceResult === 'duplicate' && (
-                    <div className="face-result error">
-                      <AlertCircle size={48} />
-                      <p>Duplicate face detected!</p>
-                    </div>
-                  )}
                 </div>
 
+                {/* Hidden canvas for capturing */}
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+                {/* Status message */}
+                {statusMsg && (
+                  <div className={`face-status-bar ${capturedPhoto ? 'detected' : ''}`}>
+                    <span>{statusMsg}</span>
+                  </div>
+                )}
+
+                {/* Error */}
                 {error && (
                   <div className="verify-error">
                     <AlertCircle size={16} />
@@ -473,34 +306,35 @@ const Verify = () => {
                   </div>
                 )}
 
-                {faceDetectionStatus && (
-                  <div className={`face-status-bar ${faceDetected ? 'detected' : ''}`}>
-                    <span>{faceDetectionStatus}</span>
-                  </div>
-                )}
+                {/* Action buttons */}
+                <div className="capture-actions">
+                  {!cameraActive && !capturedPhoto && (
+                    <button className="btn-capture" onClick={startCamera}>
+                      <Camera size={18} /> Start Camera
+                    </button>
+                  )}
 
-                <button 
-                  className="btn-capture"
-                  onClick={captureFace}
-                  disabled={faceVerifying || faceResult === 'success'}
-                >
-                  {faceVerifying ? (
+                  {cameraActive && !capturedPhoto && (
+                    <button className="btn-capture" onClick={capturePhoto}>
+                      <Camera size={18} /> Capture Photo
+                    </button>
+                  )}
+
+                  {capturedPhoto && (
                     <>
-                      <RefreshCw size={18} className="spin" />
-                      Verifying...
-                    </>
-                  ) : !cameraActive ? (
-                    <>
-                      <Camera size={18} />
-                      Start Camera
-                    </>
-                  ) : (
-                    <>
-                      <Camera size={18} />
-                      Capture & Verify
+                      <button className="btn-retake" onClick={retakePhoto}>
+                        <RefreshCw size={18} /> Retake
+                      </button>
+                      <button className="btn-confirm" onClick={confirmPhoto} disabled={saving}>
+                        {saving ? (
+                          <><RefreshCw size={18} className="spin" /> Saving...</>
+                        ) : (
+                          <><CheckCircle size={18} /> Confirm &amp; Proceed</>
+                        )}
+                      </button>
                     </>
                   )}
-                </button>
+                </div>
               </div>
             </div>
           </div>
@@ -514,6 +348,13 @@ const Verify = () => {
             </div>
             <h2>Verification Complete!</h2>
             <p>Your identity has been verified. You are now eligible to cast your vote.</p>
+
+            {/* Show the captured photo */}
+            {capturedPhoto && (
+              <div className="captured-summary">
+                <img src={capturedPhoto} alt="Your photo" className="summary-photo" />
+              </div>
+            )}
 
             {aadhaarData && (
               <div className="voter-summary">
@@ -529,7 +370,7 @@ const Verify = () => {
                   </div>
                   <div className="summary-item">
                     <span className="label">Verification</span>
-                    <span className="value status">Aadhaar + Face ✓</span>
+                    <span className="value status">Aadhaar + Face Photo ✓</span>
                   </div>
                 </div>
               </div>
