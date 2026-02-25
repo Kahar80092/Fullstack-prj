@@ -149,7 +149,6 @@
   color: #fff;
   border-color: var(--saffron);
   box-shadow: 0 4px 18px rgba(255, 153, 51, 0.45);
-  transform: translate(calc(var(--x) - 50%), calc(var(--y) - 50%)) scale(1.2) !important;
   z-index: 30;
 }
 

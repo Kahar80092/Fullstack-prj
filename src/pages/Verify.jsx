@@ -435,15 +435,7 @@ const Verify = () => {
                   {cameraActive ? (
                     <>
                       <video ref={videoRef} autoPlay playsInline muted />
-                      {/* Simulation face when no actual video stream */}
-                      {!videoRef.current?.srcObject && (
-                        <div className="simulation-face">
-                          <div className="face-oval">
-                            <User size={64} />
-                          </div>
-                          <p>Simulated Camera View</p>
-                        </div>
-                      )}
+                      <canvas ref={canvasRef} className="face-canvas-overlay" />
                     </>
                   ) : (
                     <div className="camera-placeholder">
@@ -478,6 +470,12 @@ const Verify = () => {
                   <div className="verify-error">
                     <AlertCircle size={16} />
                     <span>{error}</span>
+                  </div>
+                )}
+
+                {faceDetectionStatus && (
+                  <div className={`face-status-bar ${faceDetected ? 'detected' : ''}`}>
+                    <span>{faceDetectionStatus}</span>
                   </div>
                 )}
 

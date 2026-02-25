@@ -18,6 +18,7 @@ const ICON_MAP = {
 const AshokaChakra = ({ modules, onSpokeClick }) => {
   const [rotation, setRotation] = useState(0);
   const [hoveredSpoke, setHoveredSpoke] = useState(null);
+  const [frozen, setFrozen] = useState(false); // freeze rotation on click
   const animRef = useRef(null);
   const lastTimeRef = useRef(null);
 
@@ -28,11 +29,11 @@ const AshokaChakra = ({ modules, onSpokeClick }) => {
     const delta = timestamp - lastTimeRef.current;
     lastTimeRef.current = timestamp;
 
-    if (hoveredSpoke === null) {
+    if (hoveredSpoke === null && !frozen) {
       setRotation(prev => (prev + delta * 0.008) % 360);
     }
     animRef.current = requestAnimationFrame(animate);
-  }, [hoveredSpoke]);
+  }, [hoveredSpoke, frozen]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(animate);
@@ -40,6 +41,13 @@ const AshokaChakra = ({ modules, onSpokeClick }) => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
   }, [animate]);
+
+  // Unfreeze after 2 seconds so rotation resumes after a click
+  useEffect(() => {
+    if (!frozen) return;
+    const timer = setTimeout(() => setFrozen(false), 2000);
+    return () => clearTimeout(timer);
+  }, [frozen]);
 
   const SPOKE_COUNT = modules?.length || 24;
   const LABEL_R = 280;
@@ -76,7 +84,7 @@ const AshokaChakra = ({ modules, onSpokeClick }) => {
                 style={{ transform: `rotate(${angle}deg)` }}
                 onMouseEnter={() => setHoveredSpoke(index)}
                 onMouseLeave={() => setHoveredSpoke(null)}
-                onClick={() => onSpokeClick?.(module, index)}
+                onClick={() => { setFrozen(true); onSpokeClick?.(module, index); }}
               >
                 <div className="spoke-line" />
               </div>
@@ -108,7 +116,7 @@ const AshokaChakra = ({ modules, onSpokeClick }) => {
               }}
               onMouseEnter={() => setHoveredSpoke(index)}
               onMouseLeave={() => setHoveredSpoke(null)}
-              onClick={() => onSpokeClick?.(module, index)}
+              onClick={() => { setFrozen(true); onSpokeClick?.(module, index); }}
               title={module.title}
             >
               {IconComponent ? <IconComponent size={18} /> : <span>{index + 1}</span>}

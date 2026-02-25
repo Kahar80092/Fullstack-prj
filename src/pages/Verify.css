@@ -295,6 +295,16 @@
   object-fit: cover;
 }
 
+.face-canvas-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
 .camera-placeholder {
   width: 100%;
   height: 100%;
@@ -389,6 +399,27 @@
 .simulation-face p {
   font-size: 0.85rem;
   color: var(--gray-400);
+}
+
+.face-status-bar {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 128, 0.08);
+  border: 1px solid rgba(0, 0, 128, 0.15);
+  color: var(--ashoka-blue);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.face-status-bar.detected {
+  background: rgba(19, 136, 8, 0.1);
+  border-color: rgba(19, 136, 8, 0.25);
+  color: var(--green);
 }
 
 .btn-capture {

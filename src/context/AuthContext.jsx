@@ -176,11 +176,21 @@ export const AuthProvider = ({ children }) => {
     }]);
   };
 
-  // Check for duplicate face
-  const checkDuplicateFace = (newEmbedding) => {
-    // Simulated face matching - in reality would use ML model
-    // For demo, return false most of the time, with small random chance of duplicate
-    return Math.random() < 0.05;
+  // Check for duplicate face using Euclidean distance on 128-d descriptors
+  const checkDuplicateFace = (newDescriptor) => {
+    if (!newDescriptor || faceEmbeddings.length === 0) return false;
+    const THRESHOLD = 0.45; // faces with distance < 0.45 are considered the same person
+    for (const stored of faceEmbeddings) {
+      if (!stored.descriptor || stored.descriptor.length !== newDescriptor.length) continue;
+      let sum = 0;
+      for (let i = 0; i < newDescriptor.length; i++) {
+        const diff = newDescriptor[i] - stored.descriptor[i];
+        sum += diff * diff;
+      }
+      const distance = Math.sqrt(sum);
+      if (distance < THRESHOLD) return true; // duplicate found
+    }
+    return false;
   };
 
   // Verify Aadhaar number against database
