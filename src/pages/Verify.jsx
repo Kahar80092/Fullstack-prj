@@ -24,7 +24,7 @@ const Verify = () => {
   const streamRef = useRef(null);
   const pendingStreamRef = useRef(null);
   const navigate = useNavigate();
-  const { verifyAadhaar, hasAadhaarVoted, setCurrentVoter, saveFaceCapture, faceCaptures, blockAadhaar, isAadhaarBlocked, getBlockRemaining } = useAuth();
+  const { user, verifyAadhaar, hasAadhaarVoted, setCurrentVoter, saveFaceCapture, faceCaptures, blockAadhaar, isAadhaarBlocked, getBlockRemaining } = useAuth();
   const [blockCountdown, setBlockCountdown] = useState(0);
 
   // Format Aadhaar number with spaces
@@ -58,7 +58,8 @@ const Verify = () => {
 
     const result = verifyAadhaar(cleanAadhaar);
     if (result) {
-      setAadhaarData(result);
+      // Use the logged-in user's name instead of the mock database name
+      setAadhaarData({ ...result, name: user?.name || result.name });
       setVerificationStatus('verified');
       setTimeout(() => setStep(2), 1000);
     } else {
