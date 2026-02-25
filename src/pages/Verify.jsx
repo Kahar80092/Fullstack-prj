@@ -21,6 +21,7 @@ const Verify = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const pendingStreamRef = useRef(null);
   const navigate = useNavigate();
   const { verifyAadhaar, hasAadhaarVoted, setCurrentVoter, saveFaceCapture, faceCaptures } = useAuth();
 
@@ -74,18 +75,24 @@ const Verify = () => {
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraActive(true);
-        setStatusMsg('Camera active — position your face and click Capture Photo.');
-      }
+      pendingStreamRef.current = stream;
+      setCameraActive(true);
+      setStatusMsg('Camera active — position your face and click Capture Photo.');
     } catch (err) {
       console.error('Camera error:', err);
       setError('Camera access denied. Please allow camera permission and try again.');
       setStatusMsg('');
     }
   };
+
+  // ─── Attach stream to video element once it renders ───
+  useEffect(() => {
+    if (cameraActive && pendingStreamRef.current && videoRef.current) {
+      videoRef.current.srcObject = pendingStreamRef.current;
+      videoRef.current.play().catch(err => console.error('Video play error:', err));
+      pendingStreamRef.current = null;
+    }
+  }, [cameraActive]);
 
   // ─── Camera: stop ───
   const stopCamera = useCallback(() => {
@@ -269,10 +276,14 @@ const Verify = () => {
 
               <div className="camera-section">
                 <div className="camera-box">
-                  {/* Live video feed */}
-                  {cameraActive && !capturedPhoto && (
-                    <video ref={videoRef} autoPlay playsInline muted />
-                  )}
+                  {/* Live video feed — always in DOM, hidden via CSS */}
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{ display: cameraActive && !capturedPhoto ? 'block' : 'none' }}
+                  />
 
                   {/* Captured photo preview */}
                   {capturedPhoto && (
