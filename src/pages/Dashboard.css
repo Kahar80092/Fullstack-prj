@@ -1877,3 +1877,25 @@ input:checked + .slider:before {
   font-weight: 600;
   border-top: 1px solid var(--gray-100);
 }
+
+.capture-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: none;
+  border-top: 1px solid var(--gray-100);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.capture-delete-btn:hover {
+  background: #dc2626;
+  color: white;
+}

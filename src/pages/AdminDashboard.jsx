@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { 
+import {
   LayoutDashboard, Users, Vote, AlertTriangle, Settings,
   Activity, Shield, Clock, CheckCircle, XCircle, Eye,
-  FileText, TrendingUp, MapPin, RefreshCw, Camera
+  FileText, TrendingUp, MapPin, RefreshCw, Camera, Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Dashboard.css';
@@ -12,7 +12,7 @@ const AdminDashboard = () => {
   const { 
     stats, electionPhase, changeElectionPhase, 
     reports, auditLogs, votes = [], candidates = [],
-    faceCaptures = []
+    faceCaptures = [], deleteFaceCapture
   } = useAuth();
 
   // Calculate vote counts per party
@@ -364,6 +364,13 @@ const AdminDashboard = () => {
                           <CheckCircle size={16} />
                           Verified
                         </div>
+                        <button 
+                          className="capture-delete-btn"
+                          onClick={() => deleteFaceCapture(capture.id)}
+                          title="Delete this face capture"
+                        >
+                          <Trash2 size={16} /> Delete
+                        </button>
                       </div>
                     ))}
                   </div>

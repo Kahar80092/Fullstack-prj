@@ -187,6 +187,11 @@ export const AuthProvider = ({ children }) => {
     }]);
   };
 
+  // Delete a face capture by ID
+  const deleteFaceCapture = (captureId) => {
+    setFaceCaptures(prev => prev.filter(c => c.id !== captureId));
+  };
+
   // Block an Aadhaar number for a given duration (ms)
   const blockAadhaar = (aadhaar, durationMs = 15000) => {
     const unblockAt = Date.now() + durationMs;
@@ -316,6 +321,7 @@ export const AuthProvider = ({ children }) => {
     checkDuplicateFace,
     faceCaptures,
     saveFaceCapture,
+    deleteFaceCapture,
     blockAadhaar,
     isAadhaarBlocked,
     getBlockRemaining,

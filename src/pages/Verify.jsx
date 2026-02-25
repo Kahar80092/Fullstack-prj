@@ -181,7 +181,7 @@ const Verify = () => {
 
     // 3. Compare face against ALL previously stored captures
     setStatusMsg('Comparing face against existing records...');
-    const match = await findMatchingFace(capturedPhoto, faceCaptures, 0.85);
+    const match = await findMatchingFace(capturedPhoto, faceCaptures, 0.97);
     if (match) {
       // Face matches a previous voter — block this Aadhaar for 15 seconds
       blockAadhaar(aadhaarData.aadhaar, 15000);

@@ -1,6 +1,6 @@
 /**
  * Simple pixel-based face comparison utility.
- * Downscales two images to 64×64 and compares pixel intensities.
+ * Downscales two images to 64×64, normalizes pixel data, and compares.
  * Returns a similarity score between 0 (no match) and 1 (identical).
  */
 
@@ -18,7 +18,8 @@ const loadImage = (dataUrl) =>
   });
 
 /**
- * Draw image onto a small canvas and return its grayscale pixel data.
+ * Draw image onto a small canvas and return normalized grayscale pixel data.
+ * Mean-subtracted so that background/lighting doesn't dominate similarity.
  */
 const getFingerprint = async (dataUrl) => {
   const img = await loadImage(dataUrl);
@@ -34,7 +35,11 @@ const getFingerprint = async (dataUrl) => {
   for (let i = 0; i < data.length; i += 4) {
     gray.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
   }
-  return gray;
+
+  // Normalize: subtract mean so lighting/background doesn't dominate
+  const mean = gray.reduce((s, v) => s + v, 0) / gray.length;
+  const normalized = gray.map(v => v - mean);
+  return normalized;
 };
 
 /**
@@ -75,7 +80,7 @@ export const compareFaces = async (photoA, photoB) => {
  * @param {number} threshold - similarity threshold (default 0.85)
  * @returns {Promise<object|null>} The matching capture, or null
  */
-export const findMatchingFace = async (newPhoto, storedCaptures, threshold = 0.85) => {
+export const findMatchingFace = async (newPhoto, storedCaptures, threshold = 0.97) => {
   if (!storedCaptures || storedCaptures.length === 0) return null;
 
   const newFp = await getFingerprint(newPhoto);
