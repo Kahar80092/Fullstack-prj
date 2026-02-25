@@ -1,0 +1,220 @@
+/* ===== Ashoka Chakra — Name Labels Edition ===== */
+
+.ashoka-chakra-container {
+  position: relative;
+  width: 700px;
+  height: 700px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ashoka-chakra {
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  will-change: transform;
+}
+
+/* === Rings === */
+.chakra-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid var(--ashoka-blue);
+}
+
+.outer-ring {
+  inset: 0;
+}
+
+.middle-ring {
+  width: 85%;
+  height: 85%;
+  top: 7.5%;
+  left: 7.5%;
+}
+
+.inner-ring {
+  width: 35%;
+  height: 35%;
+  top: 32.5%;
+  left: 32.5%;
+  border-width: 4px;
+}
+
+/* Dots on middle ring */
+.chakra-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--ashoka-blue);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  margin: -4px 0 0 -4px;
+}
+
+/* === Spokes === */
+.chakra-spokes {
+  position: absolute;
+  inset: 0;
+}
+
+.chakra-spoke {
+  position: absolute;
+  width: 50%;
+  height: 4px;
+  left: 50%;
+  top: calc(50% - 2px);
+  transform-origin: left center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.spoke-line {
+  position: absolute;
+  width: 82%;
+  height: 100%;
+  background: var(--ashoka-blue);
+  left: 18%;
+  border-radius: 0 2px 2px 0;
+  transition: all 0.15s ease;
+}
+
+.chakra-spoke:hover .spoke-line,
+.chakra-spoke.hovered .spoke-line {
+  background: var(--saffron);
+  height: 6px;
+  margin-top: -1px;
+  box-shadow: 0 0 14px rgba(255, 153, 51, 0.5);
+}
+
+/* === Hub === */
+.chakra-hub {
+  position: absolute;
+  width: 25%;
+  height: 25%;
+  top: 37.5%;
+  left: 37.5%;
+  background: var(--ashoka-blue);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 24px rgba(0, 0, 128, 0.3);
+}
+
+.hub-inner {
+  width: 60%;
+  height: 60%;
+  background: var(--white);
+  border-radius: 50%;
+}
+
+/* === Icon Label Ring (non-rotating, positioned via JS) === */
+.chakra-labels-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.chakra-icon-label {
+  position: absolute;
+  pointer-events: auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  border: 2px solid var(--ashoka-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ashoka-blue);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 10px rgba(0, 0, 128, 0.12);
+  user-select: none;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  will-change: transform;
+}
+
+.chakra-icon-label:hover,
+.chakra-icon-label.active {
+  background: var(--saffron);
+  color: #fff;
+  border-color: var(--saffron);
+  box-shadow: 0 4px 18px rgba(255, 153, 51, 0.45);
+  transform: translate(calc(var(--x) - 50%), calc(var(--y) - 50%)) scale(1.2) !important;
+  z-index: 30;
+}
+
+/* === Center Overlay === */
+.chakra-center-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  pointer-events: none;
+  text-align: center;
+}
+
+.center-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 1rem 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 128, 0.12);
+  min-width: 120px;
+}
+
+.center-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--ashoka-blue);
+  line-height: 1;
+}
+
+.center-mod-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ashoka-blue);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.center-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gray-600, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.center-hint {
+  font-size: 0.62rem;
+  color: var(--gray-400, #9ca3af);
+  margin-top: 4px;
+}
+
+/* === Responsive (scale-based to keep label positioning intact) === */
+@media (max-width: 900px) {
+  .ashoka-chakra-container {
+    transform: scale(0.7);
+    margin: -105px;
+  }
+}
+
+@media (max-width: 640px) {
+  .ashoka-chakra-container {
+    transform: scale(0.5);
+    margin: -175px;
+  }
+}

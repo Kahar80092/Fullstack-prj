@@ -1,0 +1,27 @@
+.disclaimer-banner {
+  background: linear-gradient(135deg, var(--ashoka-blue) 0%, var(--navy) 100%);
+  color: var(--white);
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.disclaimer-banner svg {
+  color: var(--saffron);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .disclaimer-banner {
+    font-size: 0.65rem;
+    padding: 0.5rem;
+  }
+  
+  .disclaimer-banner span {
+    line-height: 1.4;
+  }
+}
